@@ -9,3 +9,7 @@ _*
 
 # Store .git files
 !.git*
+
+tests/
+
+java-advanced.iml
