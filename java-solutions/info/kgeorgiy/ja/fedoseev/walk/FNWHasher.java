@@ -15,7 +15,7 @@ public class FNWHasher {
                 hval ^= ch;
                 ch = input.read();
             }
-        } catch (IOException _) {
+        } catch (IOException e) {
             hval = 0;
         }
         return hval;
