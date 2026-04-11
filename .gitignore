@@ -10,6 +10,8 @@ _*
 # Store .git files
 !.git*
 
+out/
+
 tests/
 test.sh
 
