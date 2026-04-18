@@ -7,6 +7,7 @@ import info.kgeorgiy.java.advanced.student.Student;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Gatherer;
 
 public class StudentDB implements GroupQuery {
 
@@ -21,7 +22,7 @@ public class StudentDB implements GroupQuery {
                 .toList();
     }
 
-    private List<Group> getGroupsBy(Collection<Student> collection, Comparator<Student> comparator) {
+    private List<Group> getGroupsBy(Collection<Student> collection, Comparator<? super Student> comparator) {
         return getGroups(collection).stream()
                 .map(group -> new Group(group.name(),
                         group.students().stream().sorted(comparator).toList()))
