@@ -1,0 +1,7 @@
+module java.solutions {
+    requires info.kgeorgiy.java.advanced.implementor;
+    requires info.kgeorgiy.java.advanced.implementor.tools;
+    requires info.kgeorgiy.java.advanced.streams;
+    requires info.kgeorgiy.java.advanced.student;
+    requires java.compiler;
+}
