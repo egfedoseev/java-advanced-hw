@@ -14,14 +14,4 @@ public class CompilerException extends ImplerException {
     public CompilerException(String message) {
         super(message);
     }
-
-    /**
-     * Creates {@code CompilerException} with specified error message and a cause.
-     *
-     * @param message error message.
-     * @param cause   error cause.
-     */
-    public CompilerException(String message, Throwable cause) {
-        super(message, cause);
-    }
 }

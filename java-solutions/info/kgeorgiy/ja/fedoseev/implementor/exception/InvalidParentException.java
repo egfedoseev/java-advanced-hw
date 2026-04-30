@@ -14,14 +14,4 @@ public class InvalidParentException extends ImplerException {
     public InvalidParentException(String message) {
         super(message);
     }
-
-    /**
-     * Creates {@code InvalidParentException} with specified message and a cause.
-     *
-     * @param message error message.
-     * @param cause   error cause.
-     */
-    public InvalidParentException(String message, Throwable cause) {
-        super(message, cause);
-    }
 }

@@ -9,7 +9,6 @@ import info.kgeorgiy.java.advanced.implementor.tools.JarImpler;
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
