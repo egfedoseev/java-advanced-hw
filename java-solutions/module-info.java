@@ -4,4 +4,5 @@ module java.solutions {
     requires info.kgeorgiy.java.advanced.streams;
     requires info.kgeorgiy.java.advanced.student;
     requires java.compiler;
+    requires info.kgeorgiy.java.advanced.iterative;
 }
