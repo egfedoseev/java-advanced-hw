@@ -1,9 +1,9 @@
 package info.kgeorgiy.ja.fedoseev.iterative;
 
 import info.kgeorgiy.java.advanced.iterative.NewListIP;
+import info.kgeorgiy.java.advanced.mapper.ParallelMapper;
 
 import java.util.*;
-import java.util.concurrent.ThreadFactory;
 import java.util.function.*;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -15,57 +15,59 @@ import java.util.stream.Stream;
  * The input list is partitioned into chunks evenly distributed across the specified number of threads.
  */
 public class IterativeParallelism implements NewListIP {
-    private final ThreadFactory threadFactory = Thread.ofVirtual().name("worker-", 0).factory();
+    private final ParallelMapper parallelMapper;
 
+    /**
+     * Constructs a new {@code IterativeParallelism} instance without an external mapper.
+     * When using this constructor, all parallel operations will manage and spawn
+     * threads manually via a fork-join approach.
+     */
+    public IterativeParallelism() {
+        this.parallelMapper = null;
+    }
+
+    /**
+     * Constructs a new {@code IterativeParallelism} instance with the specified {@link ParallelMapper}.
+     * When using this constructor, all parallel operations will delegate task execution
+     * to the provided mapper instead of spawning threads manually.
+     *
+     * @param parallelMapper the mapper to be used for executing tasks in parallel,
+     *                       or {@code null} to use manual thread management
+     */
+    public IterativeParallelism(ParallelMapper parallelMapper) {
+        this.parallelMapper = parallelMapper;
+    }
 
     private <T, R> R runParallel(int n, int size, BiFunction<Integer, Integer, T> worker, Function<List<T>, R> reducer) throws InterruptedException {
         if (n < 1) {
             throw new IllegalArgumentException("Number of threads must be positive");
         }
-        n = Math.max(1, Math.min(n, size));
-        int blockSize = size / n;
-        int rem = size % n;
+        final int threadsCnt = Math.max(1, Math.min(n, size));
+        int blockSize = size / threadsCnt;
+        int rem = size % threadsCnt;
 
-        Thread[] threads = new Thread[n];
-        List<T> results = new ArrayList<>(Collections.nCopies(n, null));
-        RuntimeException[] errors = new RuntimeException[n];
-
-        for (int i = 0; i < n; ++i) {
-            final int idx = i;
-            int begin = idx * blockSize + Math.min(idx, rem);
-            int end = begin + blockSize + (idx < rem ? 1 : 0);
-
-            threads[i] = threadFactory.newThread(() -> {
-                try {
-                    results.set(idx, worker.apply(begin, end));
-                } catch (RuntimeException e) {
-                    errors[idx] = e;
-                }
-            });
-        }
-        runThreads(threads);
-
-        RuntimeException mainException = null;
-        for (RuntimeException error : errors) {
-            if (error != null) {
-                if (mainException == null) {
-                    mainException = error;
-                } else {
-                    mainException.addSuppressed(error);
-                }
+        final ParallelMapper mapper = (this.parallelMapper != null) ? this.parallelMapper : new ParallelMapperImpl(threadsCnt);
+        try {
+            List<T> results = mapper.map(idx -> {
+                int begin = idx * blockSize + Math.min(idx, rem);
+                int end = begin + blockSize + (idx < rem ? 1 : 0);
+                return worker.apply(begin, end);
+            }, IntStream.range(0, threadsCnt).boxed().toList());
+            return reducer.apply(results);
+        } finally {
+            if (this.parallelMapper == null) {
+                mapper.close();
             }
         }
-
-        if (mainException != null) {
-            throw mainException;
-        }
-        return reducer.apply(results);
     }
 
-    private void runThreads(Thread[] threads) throws InterruptedException {
-        for (Thread thread : threads) {
-            thread.start();
-        }
+    /**
+     * Invokes {@link Thread#join()} on each thread in array.
+     *
+     * @param threads array of threads.
+     * @throws InterruptedException if any thread has interrupted the current thread.
+     */
+    protected static void joinThreads(Thread[] threads) throws InterruptedException {
         for (Thread thread : threads) {
             thread.join();
         }
