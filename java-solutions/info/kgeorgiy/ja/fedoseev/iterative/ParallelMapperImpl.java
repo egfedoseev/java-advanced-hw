@@ -50,6 +50,11 @@ public class ParallelMapperImpl implements ParallelMapper {
         }
     }
 
+    private static class IntHolder {
+        int value;
+        IntHolder(int value) { this.value = value; }
+    }
+
     /**
      * {@inheritDoc}
      *
@@ -62,7 +67,7 @@ public class ParallelMapperImpl implements ParallelMapper {
         }
 
         final Object lock = new Object();
-        final int[] tasksRemaining = {items.size()};
+        final IntHolder tasksRemaining = new IntHolder(items.size());
 
         final List<R> results = new ArrayList<>(items.size());
         results.addAll(Collections.nCopies(items.size(), null));
@@ -80,8 +85,8 @@ public class ParallelMapperImpl implements ParallelMapper {
                     errors[idx] = e;
                 } finally {
                     synchronized (lock) {
-                        tasksRemaining[0]--;
-                        if (tasksRemaining[0] == 0) {
+                        tasksRemaining.value--;
+                        if (tasksRemaining.value == 0) {
                             lock.notifyAll();
                         }
                     }
@@ -91,7 +96,7 @@ public class ParallelMapperImpl implements ParallelMapper {
         }
 
         synchronized (lock) {
-            while (tasksRemaining[0] > 0) {
+            while (tasksRemaining.value > 0) {
                 lock.wait();
             }
         }

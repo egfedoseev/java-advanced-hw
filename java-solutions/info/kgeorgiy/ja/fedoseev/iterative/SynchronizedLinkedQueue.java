@@ -10,14 +10,14 @@ package info.kgeorgiy.ja.fedoseev.iterative;
  */
 public class SynchronizedLinkedQueue<T> {
     private static class Node<T> {
-        private final T val;
-        private Node<T> next;
+        final T val;
+        Node<T> next;
 
-        public Node() {
+        Node() {
             val = null;
         }
 
-        public Node(T val) {
+        Node(T val) {
             this.val = val;
         }
     }
