@@ -9,6 +9,10 @@ package info.kgeorgiy.ja.fedoseev.iterative;
  * @param <T> the type of elements held in this queue
  */
 public class SynchronizedLinkedQueue<T> {
+    public SynchronizedLinkedQueue(int threadCount) {
+        this.threadCount = threadCount;
+    }
+
     private static class Node<T> {
         final T val;
         Node<T> next;
@@ -22,24 +26,9 @@ public class SynchronizedLinkedQueue<T> {
         }
     }
 
+    private final int threadCount;
     private Node<T> head;
     private Node<T> tail = new Node<>();
-
-    /**
-     * Adds the specified element to the end of the queue.
-     * If there are threads waiting for elements (having called the {@link #take()} method),
-     * one of them will be awakened.
-     *
-     * @param val the element to add to the queue
-     */
-    public synchronized void push(T val) {
-        tail.next = new Node<>(val);
-        tail = tail.next;
-        if (head == null) {
-            head = tail;
-        }
-        notify();
-    }
 
     /**
      * Retrieves and removes the head of this queue, waiting if necessary
@@ -69,5 +58,31 @@ public class SynchronizedLinkedQueue<T> {
         T val = head.val;
         head = head.next;
         return val;
+    }
+
+    /**
+     * Adds multiple elements to the end of the queue atomically.
+     * All threads waiting for elements will be awakened.
+     *
+     * @param elements the collection of elements to add
+     */
+    public synchronized void addAll(Iterable<? extends T> elements) {
+        int cnt = 0;
+        for (T val : elements) {
+            tail.next = new Node<>(val);
+            tail = tail.next;
+            if (head == null) {
+                head = tail;
+            }
+            ++cnt;
+        }
+
+        if (cnt >= threadCount) {
+            notifyAll();
+        } else {
+            for (int i = 0; i < cnt; ++i) {
+                notify();
+            }
+        }
     }
 }

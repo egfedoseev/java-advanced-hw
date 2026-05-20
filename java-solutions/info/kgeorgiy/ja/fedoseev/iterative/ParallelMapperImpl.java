@@ -17,7 +17,7 @@ import java.util.function.Function;
  */
 public class ParallelMapperImpl implements ParallelMapper {
 
-    private final SynchronizedLinkedQueue<Runnable> queue = new SynchronizedLinkedQueue<>();
+    private final SynchronizedLinkedQueue<Runnable> queue;
     private final Thread[] threads;
 
     private volatile boolean closed = false;
@@ -26,13 +26,14 @@ public class ParallelMapperImpl implements ParallelMapper {
      * Constructs a new {@code ParallelMapperImpl} with the specified number of worker threads.
      * The threads are created and started immediately upon instantiation.
      *
-     * @param threads the number of concurrent worker threads to be used by this mapper
+     * @param threadsCnt the number of concurrent worker threads to be used by this mapper
      */
-    public ParallelMapperImpl(int threads) {
+    public ParallelMapperImpl(int threadsCnt) {
         final Thread.Builder.OfVirtual threadBuilder = Thread.ofVirtual().name("worker-", 0);
-        this.threads = new Thread[threads];
-        for (int i = 0; i < threads; ++i) {
-            this.threads[i] = threadBuilder.start(() -> {
+        threads = new Thread[threadsCnt];
+        queue = new SynchronizedLinkedQueue<>(threadsCnt);
+        for (int i = 0; i < threadsCnt; ++i) {
+            threads[i] = threadBuilder.start(() -> {
                 try {
                     while (!Thread.currentThread().isInterrupted()) {
                         queue.take().run();
@@ -73,6 +74,7 @@ public class ParallelMapperImpl implements ParallelMapper {
         results.addAll(Collections.nCopies(items.size(), null));
         final RuntimeException[] errors = new RuntimeException[items.size()];
 
+        List<Runnable> tasks = new ArrayList<>(items.size());
         for (int i = 0; i < items.size(); ++i) {
             final int idx = i;
             Runnable wrappedTask = () -> {
@@ -92,8 +94,9 @@ public class ParallelMapperImpl implements ParallelMapper {
                     }
                 }
             };
-            queue.push(wrappedTask);
+            tasks.add(wrappedTask);
         }
+        queue.addAll(tasks);
 
         synchronized (lock) {
             while (tasksRemaining.value > 0) {
