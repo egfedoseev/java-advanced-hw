@@ -7,9 +7,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 
 public class HelloUDPServer implements NewHelloServer {
@@ -47,7 +45,18 @@ public class HelloUDPServer implements NewHelloServer {
                 requestPacket.getOffset(),
                 requestPacket.getLength(),
                 StandardCharsets.UTF_8);
+        StringBuilder localizedRequestMessage = new StringBuilder();
+        for (int i = 0; i < requestMessage.length(); ++i) {
+            char c = requestMessage.charAt(i);
+            if (Character.isDigit(c)) {
+                localizedRequestMessage.append(Character.digit(c, 10));
+            } else {
+                localizedRequestMessage.append(c);
+            }
+        }
+        requestMessage = localizedRequestMessage.toString();
         String responseMessage = format.replace("%%", requestMessage);
+
 
         byte[] responseBuff = responseMessage.getBytes(StandardCharsets.UTF_8);
         DatagramPacket responsePacket = new DatagramPacket(responseBuff, responseBuff.length, requestPacket.getSocketAddress());
@@ -91,7 +100,7 @@ public class HelloUDPServer implements NewHelloServer {
         workerExecutor.close();
     }
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         if (args.length != 2) {
             System.err.println("Usage: port threads");
             return;

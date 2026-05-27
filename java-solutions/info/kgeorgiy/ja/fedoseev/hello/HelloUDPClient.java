@@ -4,9 +4,7 @@ import info.kgeorgiy.java.advanced.hello.HelloClient;
 
 import java.io.IOException;
 import java.net.*;
-import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -45,18 +43,24 @@ public class HelloUDPClient implements HelloClient {
     }
 
     private static boolean endsWith(String s, int end, String suffix) {
-        boolean res = end >= suffix.length();
-        for (int i = end - 1; i >= 0; --i) {
-            int digitA = Character.digit(s.charAt(i), 10);
-            boolean isEnd = i - end + suffix.length() < 0;
-            if (digitA == -1 && isEnd) {
-                break;
-            }
-            if (digitA == -1 || isEnd || digitA != Character.digit(suffix.charAt(i - end + suffix.length()), 10)) {
-                res = false;
+        // 1. Проверяем, достаточно ли места в строке
+        if (end < suffix.length()) {
+            return false;
+        }
+        for (int i = 0; i < suffix.length(); ++i) {
+            char charFromS = s.charAt(end - suffix.length() + i);
+            char charFromSuffix = suffix.charAt(i);
+
+            int digitS = Character.digit(charFromS, 10);
+            int digitSuffix = Character.digit(charFromSuffix, 10);
+
+            if (digitS == -1 || digitS != digitSuffix) {
+                return false;
             }
         }
-        return res;
+
+        int indexBeforeSuffix = end - suffix.length() - 1;
+        return indexBeforeSuffix < 0 || !Character.isDigit(s.charAt(indexBeforeSuffix));
     }
 
     private static boolean startsWith(String s, int begin, String prefix) {
