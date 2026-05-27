@@ -14,7 +14,7 @@ import java.util.stream.IntStream;
 
 public class HelloUDPClient implements HelloClient {
     private static final int MAX_TRIES = Integer.MAX_VALUE;
-    private static final int TIMEOUT = 1000;
+    private static final int TIMEOUT = 300;
     private static final int RESPONSE_SIZE = 1024;
 
     @Override
