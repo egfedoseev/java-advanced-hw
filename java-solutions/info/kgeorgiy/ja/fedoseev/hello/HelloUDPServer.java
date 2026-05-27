@@ -109,15 +109,15 @@ public class HelloUDPServer implements NewHelloServer {
         int port = Integer.parseInt(args[0]);
         int threads = Integer.parseInt(args[1]);
 
-        HelloUDPServer server = new HelloUDPServer();
-        server.start(port, threads);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.err.println("Signal received");
-            server.close();
-        }));
+        try (HelloUDPServer server = new HelloUDPServer()){
+            server.start(port, threads);
 
-        try {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.err.println("Signal received");
+                server.close();
+            }));
+
             Thread.currentThread().join();
         } catch (InterruptedException e) {
             System.err.println("Main thread interrupted");
