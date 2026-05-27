@@ -20,8 +20,8 @@ public class HelloUDPServer implements NewHelloServer {
     private final List<Thread> receivers = new ArrayList<>();
     private final List<DatagramSocket> sockets = new ArrayList<>();
 
-    private boolean isRunning = false;
-    private boolean isClosed = false;
+    private volatile boolean isRunning = false;
+    private volatile boolean isClosed = false;
 
     private void runReceiver(DatagramSocket socket, String format) {
         while (!Thread.currentThread().isInterrupted()) {
@@ -109,11 +109,18 @@ public class HelloUDPServer implements NewHelloServer {
         int port = Integer.parseInt(args[0]);
         int threads = Integer.parseInt(args[1]);
 
-        try (HelloUDPServer server = new HelloUDPServer()) {
-            server.start(port, threads);
-            while (true) {
+        HelloUDPServer server = new HelloUDPServer();
+        server.start(port, threads);
 
-            }
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.err.println("Signal received");
+            server.close();
+        }));
+
+        try {
+            Thread.currentThread().join();
+        } catch (InterruptedException e) {
+            System.err.println("Main thread interrupted");
         }
     }
 }
