@@ -4,7 +4,9 @@ import info.kgeorgiy.java.advanced.hello.HelloClient;
 
 import java.io.IOException;
 import java.net.*;
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -30,9 +32,8 @@ public class HelloUDPClient implements HelloClient {
 
         try (ExecutorService sendExecutor = Executors.newFixedThreadPool(threads)) {
             List<Future<?>> futures = IntStream.iterate(1, idx -> idx + 1).limit(threads)
-                    .<Future<?>>mapToObj(idx -> sendExecutor.submit(() -> {
-                        sendRequests(prefix, requests, idx, socketAddress);
-                    })).toList();
+                    .<Future<?>>mapToObj(idx -> sendExecutor.submit(() -> sendRequests(prefix, requests, idx, socketAddress)))
+                    .toList();
             for (Future<?> future : futures) {
                 future.get();
             }
@@ -43,7 +44,32 @@ public class HelloUDPClient implements HelloClient {
         }
     }
 
-    private static void sendRequests(String prefix, int requests, int idx, SocketAddress socketAddress) {
+    private static boolean endsWith(String s, int end, String suffix) {
+        boolean res = end >= suffix.length();
+        for (int i = end - 1; i >= 0; --i) {
+            int digitA = Character.digit(s.charAt(i), 10);
+            boolean isEnd = i - end + suffix.length() < 0;
+            if (digitA == -1 && isEnd) {
+                break;
+            }
+            if (digitA == -1 || isEnd || digitA != Character.digit(suffix.charAt(i - end + suffix.length()), 10)) {
+                res = false;
+            }
+        }
+        return res;
+    }
+
+    private static boolean startsWith(String s, int begin, String prefix) {
+        boolean res = begin + prefix.length() <= s.length();
+        for (int i = begin; i < begin + prefix.length() && res; ++i) {
+            if (Character.digit(s.charAt(i), 10) != Character.digit(prefix.charAt(i - begin), 10)) {
+                res = false;
+            }
+        }
+        return res;
+    }
+
+    private static void sendRequests(String prefix, int requests, int thread, SocketAddress socketAddress) {
         try (DatagramSocket socket = new DatagramSocket()) {
             socket.setSoTimeout(TIMEOUT);
 
@@ -51,22 +77,14 @@ public class HelloUDPClient implements HelloClient {
             DatagramPacket responsePacket = new DatagramPacket(responseBuff, responseBuff.length);
 
             for (int i = 1; i <= requests; ++i) {
-                String suffix = i + "_" + idx;
+                String suffix = i + "_" + thread;
                 String message = prefix + suffix;
                 byte[] requestBuff = message.getBytes(StandardCharsets.UTF_8);
                 DatagramPacket requestPacket = new DatagramPacket(requestBuff, requestBuff.length, socketAddress);
 
                 for (int tries = 0; tries < MAX_TRIES; ++tries)
                     try {
-                        socket.send(requestPacket);
-                        socket.receive(responsePacket);
-                        String responseMessage = new String(
-                                responsePacket.getData(),
-                                responsePacket.getOffset(),
-                                responsePacket.getLength(),
-                                StandardCharsets.UTF_8);
-                        if (responseMessage.endsWith(suffix)) {
-                            System.out.println(message + " " + responseMessage);
+                        if (sendRequest(socket, requestPacket, responsePacket, message, i, thread)) {
                             break;
                         }
                     } catch (IOException _) {
@@ -77,6 +95,38 @@ public class HelloUDPClient implements HelloClient {
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static boolean sendRequest(DatagramSocket socket,
+                                       DatagramPacket requestPacket,
+                                       DatagramPacket responsePacket,
+                                       String message,
+                                       int i, int thread) throws IOException {
+        socket.send(requestPacket);
+        socket.receive(responsePacket);
+        String responseMessage = new String(
+                responsePacket.getData(),
+                responsePacket.getOffset(),
+                responsePacket.getLength(),
+                StandardCharsets.UTF_8);
+
+        boolean isMine = false;
+        String first = Integer.toString(i);
+        String second = Integer.toString(thread);
+        for (int j = first.length(); j < responseMessage.length() - second.length(); ++j) {
+            if (responseMessage.charAt(j) != '_') {
+                continue;
+            }
+            if (endsWith(responseMessage, j, first) && startsWith(responseMessage, j + 1, second)) {
+                isMine = true;
+            }
+        }
+
+        if (isMine) {
+            System.out.println(message + " " + responseMessage);
+            return true;
+        }
+        return false;
     }
 
     static void main(String[] args) {
