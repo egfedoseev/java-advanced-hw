@@ -46,9 +46,11 @@ public class Streams implements HardStreams {
     public <T> Collector<T, ?, List<T>> tail(int k) {
         return Collector.of(ArrayDeque<T>::new,
                 (deque, elem) -> {
-                    deque.add(elem);
-                    if (deque.size() > k) {
-                        deque.pollFirst();
+                    if (k > 0) {
+                        deque.add(elem);
+                        if (deque.size() > k) {
+                            deque.pollFirst();
+                        }
                     }
                 },
                 (left, right) -> {
@@ -56,7 +58,8 @@ public class Streams implements HardStreams {
                         right.addFirst(left.pollLast());
                     }
                     return right;
-                }, deque -> k > 0 ? List.copyOf(deque) : List.of());
+                },
+                List::copyOf);
     }
 
     @Override
@@ -83,7 +86,9 @@ public class Streams implements HardStreams {
     public Gatherer<CharSequence, ?, CharSequence> stringSuffixes() {
         return Gatherer.of(Gatherer.Integrator.ofGreedy((_, seq, downstream) -> {
             for (int i = seq.length() - 1; i >= 0; --i) {
-                downstream.push(seq.subSequence(i, seq.length()));
+                if (!downstream.push(seq.subSequence(i, seq.length()))) {
+                    return false;
+                }
             }
             return true;
         }));
@@ -96,13 +101,14 @@ public class Streams implements HardStreams {
         }
         return Gatherer.ofSequential(State::new,
                 Gatherer.Integrator.ofGreedy((state, elem, downstream) -> {
+                    boolean keepGoing = true;
                     if (state.cnt == i) {
-                        downstream.push(elem);
+                        keepGoing = downstream.push(elem);
                     }
                     if (++state.cnt == n) {
                         state.cnt = 0;
                     }
-                    return true;
+                    return keepGoing;
                 }));
     }
 
@@ -187,9 +193,12 @@ public class Streams implements HardStreams {
 
     @Override
     public <T> Collector<T, ?, Optional<T>> middle() {
-        return Collector.of(ArrayList::new,
-                (ArrayList<T> acc, T elem) -> acc.add(elem),
-                (left, _) -> left,
+        return Collector.of(ArrayList<T>::new,
+                ArrayList::add,
+                (left, right) -> {
+                    left.addAll(right);
+                    return left;
+                },
                 acc -> Optional.ofNullable(acc.isEmpty() ? null : acc.get(acc.size() / 2)));
     }
 
@@ -259,7 +268,9 @@ public class Streams implements HardStreams {
     public Gatherer<CharSequence, ?, CharSequence> stringPrefixes() {
         return Gatherer.of(Gatherer.Integrator.ofGreedy((_, seq, downstream) -> {
             for (int i = 1; i <= seq.length(); ++i) {
-                downstream.push(seq.subSequence(0, i));
+                if (!downstream.push(seq.subSequence(0, i))) {
+                    return false;
+                }
             }
             return true;
         }));
@@ -267,17 +278,7 @@ public class Streams implements HardStreams {
 
     @Override
     public <T> Gatherer<T, ?, T> nth(int n) {
-        class State {
-            int cnt = 0;
-        }
-        return Gatherer.ofSequential(State::new, Gatherer.Integrator.ofGreedy((state, elem, downstream) -> {
-            state.cnt++;
-            if (state.cnt == n) {
-                downstream.push(elem);
-                state.cnt = 0;
-            }
-            return true;
-        }));
+        return ithOfN(n - 1, n);
     }
 
     @Override
