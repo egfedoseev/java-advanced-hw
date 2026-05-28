@@ -3,35 +3,10 @@ package info.kgeorgiy.ja.fedoseev.arrayset;
 import info.kgeorgiy.ja.fedoseev.util.BinarySearch;
 
 import java.util.*;
-import java.util.function.IntUnaryOperator;
 
-public class ArraySet<E> extends ImmutableSet<E> {
-    private class SetIterator implements Iterator<E> {
-        private int nextIdx;
-        private final IntUnaryOperator operator;
+public class ArraySet<E> extends AbstractSet<E> implements NavigableSet<E> {
 
-        private SetIterator(final int nextIdx, final IntUnaryOperator operator) {
-            this.nextIdx = nextIdx;
-            this.operator = operator;
-        }
-
-        @Override
-        public boolean hasNext() {
-            return nextIdx < elements.size() && nextIdx >= 0;
-        }
-
-        @Override
-        public E next() {
-            if (!hasNext()) {
-                throw new NoSuchElementException();
-            }
-            int oldIdx = nextIdx;
-            nextIdx = operator.applyAsInt(nextIdx);
-            return elements.get(oldIdx);
-        }
-    }
-
-    private final Comparator<E> comparator;
+    private final Comparator<? super E> comparator;
     private List<E> elements;
 
     private void constructArray(Collection<? extends E> collection) {
@@ -43,11 +18,13 @@ public class ArraySet<E> extends ImmutableSet<E> {
                 elements.set(j++, elements.get(i));
             }
         }
-        elements = new ArrayList<>(elements.subList(0, j));
+        elements.subList(j, elements.size()).clear();
+        elements = Collections.unmodifiableList(elements);
     }
 
     public ArraySet() {
-        this(Collections.emptySet());
+        this.comparator = null;
+        this.elements = Collections.emptyList(); // или List.of()
     }
 
     public ArraySet(Collection<? extends E> collection) {
@@ -55,12 +32,12 @@ public class ArraySet<E> extends ImmutableSet<E> {
         constructArray(collection);
     }
 
-    public ArraySet(Collection<? extends E> collection, Comparator<E> comparator) {
+    public ArraySet(Collection<? extends E> collection, Comparator<? super E> comparator) {
         this.comparator = comparator;
         constructArray(collection);
     }
 
-    private ArraySet(List<E> list, Comparator<E> comparator) {
+    private ArraySet(List<E> list, Comparator<? super E> comparator) {
         this.comparator = comparator;
         elements = list;
     }
@@ -98,6 +75,16 @@ public class ArraySet<E> extends ImmutableSet<E> {
     }
 
     @Override
+    public E pollFirst() {
+        throw new UnsupportedOperationException("The pollFirst operation is unsupported, ArraySet is immutable");
+    }
+
+    @Override
+    public E pollLast() {
+        throw new UnsupportedOperationException("The pollLast operation is unsupported, ArraySet is immutable");
+    }
+
+    @Override
     public int size() {
         return elements.size();
     }
@@ -114,7 +101,7 @@ public class ArraySet<E> extends ImmutableSet<E> {
 
     @Override
     public Iterator<E> iterator() {
-        return new SetIterator(0, i -> i + 1);
+        return elements.iterator();
     }
 
     @Override
@@ -135,7 +122,7 @@ public class ArraySet<E> extends ImmutableSet<E> {
 
     @Override
     public Iterator<E> descendingIterator() {
-        return new SetIterator(elements.size() - 1, i -> i - 1);
+        return elements.reversed().iterator();
     }
 
     private int calcLeftBorder(final E fromElem, boolean inclusive) {
@@ -156,7 +143,7 @@ public class ArraySet<E> extends ImmutableSet<E> {
         if (compare(fromElement, toElement) > 0) {
             throw new IllegalArgumentException("fromElement is greater than toElement");
         }
-        int left =  calcLeftBorder(fromElement, fromInclusive);
+        int left = calcLeftBorder(fromElement, fromInclusive);
         int right = calcRightBorder(toElement, toInclusive);
         if (left > right) {
             right = left;

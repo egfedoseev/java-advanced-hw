@@ -11,7 +11,7 @@ public final class BinarySearch {
     public static int binarySearch(final int sz, final IntPredicate checker) {
         int l = -1, r = sz;
         while (r - l > 1) {
-            final int md = (r + l) / 2;
+            final int md = (r + l) >>> 1;
             if (checker.test(md)) {
                 r = md;
             } else {
@@ -42,11 +42,4 @@ public final class BinarySearch {
         return bound(elements, x, comparator, false);
     }
 
-    public static <E extends Comparable<? super E>> int lowerBound(final List<? extends E> elements, final E x) {
-        return binarySearch(elements.size(), idx -> x.compareTo(elements.get(idx)) <= 0);
-    }
-
-    public static <E extends Comparable<? super E>> int upperBound(final List<? extends E> elements, final E x) {
-        return binarySearch(elements.size(), idx -> x.compareTo(elements.get(idx)) < 0);
-    }
 }
