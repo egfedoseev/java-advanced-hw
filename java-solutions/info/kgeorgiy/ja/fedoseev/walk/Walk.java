@@ -9,19 +9,22 @@ import java.nio.file.StandardOpenOption;
 import java.util.Optional;
 
 public class Walk {
-    private static int hashFile(Optional<Path> path) {
-        return path.map(Walk::hashFile).orElse(0);
+    public static final String FORMAT = "%08x %s" + System.lineSeparator();
+
+    @FunctionalInterface
+    public interface FileProcessor {
+        void process(BufferedReader reader, BufferedWriter writer) throws IOException;
     }
 
-    static int hashFile(Path path) {
+    public static int hashFile(Path path) {
         try (BufferedInputStream fileInputStream = new BufferedInputStream(Files.newInputStream(path))) {
             return FNWHasher.FNV1Hash(fileInputStream);
-        } catch (Throwable e) {
+        } catch (Exception e) {
             return 0;
         }
     }
 
-    static Optional<Path> tryParsePath(String pathString) {
+    public static Optional<Path> tryParsePath(String pathString) {
         if (pathString == null) {
             return Optional.empty();
         }
@@ -32,7 +35,7 @@ public class Walk {
         }
     }
 
-    public static void main(String[] args) {
+    public static void runWalk(String[] args, FileProcessor processor) {
         if (args == null || args.length != 2) {
             System.err.println("Usage: INPUT OUTPUT");
             return;
@@ -63,7 +66,7 @@ public class Walk {
 
         try (BufferedReader inputReader = Files.newBufferedReader(inputPath, StandardCharsets.UTF_8)) {
             try (BufferedWriter outputWriter = Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8, StandardOpenOption.CREATE)) {
-                processFiles(inputReader, outputWriter);
+                processor.process(inputReader, outputWriter);
             } catch (IOException e) {
                 System.err.println("Can't read from input file: " + e.getMessage());
             }
@@ -74,22 +77,32 @@ public class Walk {
         }
     }
 
+    public static void main(String[] args) {
+        runWalk(args, Walk::processFiles);
+    }
+
     private static void processFiles(BufferedReader inputReader, BufferedWriter outputWriter) throws IOException {
-        String pathString = inputReader.readLine();
-        while (pathString != null) {
+        String pathString;
+        while ((pathString = inputReader.readLine()) != null) {
             try {
-                processRegularFile(outputWriter, tryParsePath(pathString), pathString);
+                Optional<Path> optionalPath = tryParsePath(pathString);
+                if (optionalPath.isEmpty()) {
+                    outputWriter.write(String.format(FORMAT, 0, pathString));
+                } else {
+                    processRegularFile(outputWriter, optionalPath.get(), pathString);
+                }
             } catch (IOException e) {
                 System.err.println("Can't write to output file: " + e.getMessage());
                 return;
             }
-            pathString = inputReader.readLine();
         }
     }
 
-    static void processRegularFile(BufferedWriter outputWriter, Optional<Path> path, String pathString) throws IOException {
-        int hash = hashFile(path);
-        outputWriter.write(String.format("%08x %s", hash, pathString));
-        outputWriter.newLine();
+    public static void processRegularFile(Writer outputWriter, Path path, String pathString) throws IOException {
+        outputWriter.write(String.format(FORMAT, hashFile(path), pathString));
+    }
+
+    public static void writeFailedFileResult(Writer outputWriter, String pathString) throws IOException {
+        outputWriter.write(String.format(FORMAT, 0, pathString));
     }
 }
